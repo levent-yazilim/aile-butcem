@@ -25,16 +25,13 @@ export default function SunTracker() {
       const yesterday = new Date();
       yesterday.setDate(today.getDate() - 1);
 
-      // Güneş verilerini al
       const timesToday = SunCalc.getTimes(today, lat, lon);
       const timesYesterday = SunCalc.getTimes(yesterday, lat, lon);
 
-      // Gündüz süresi (milisaniye)
       const dayLengthToday = timesToday.sunset - timesToday.sunrise;
       const dayLengthYesterday = timesYesterday.sunset - timesYesterday.sunrise;
       const diffInMs = dayLengthToday - dayLengthYesterday;
 
-      // Saniye ve Dakika Hesabı
       const totalSeconds = Math.abs(Math.round(diffInMs / 1000));
       const mins = Math.floor(totalSeconds / 60);
       const secs = totalSeconds % 60;
@@ -61,7 +58,7 @@ export default function SunTracker() {
 
   if (!data) return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="text-slate-500 animate-pulse font-medium">Güneş verileri hazırlanıyor...</div>
+      <div className="text-slate-500 animate-pulse font-medium">bulut.today hazırlanıyor...</div>
     </div>
   );
 
@@ -69,9 +66,14 @@ export default function SunTracker() {
     <div className="min-h-screen bg-slate-900 text-white p-6 flex items-center justify-center font-sans">
       <div className="bg-slate-800 p-8 rounded-[40px] shadow-2xl w-full max-w-sm border border-slate-700">
         
-        {/* Üst Başlık ve İkon */}
+        {/* Üst Başlık (bulut.today) */}
         <div className="text-center mb-10">
-          <h1 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">Güneş Döngüsü</h1>
+          <h1 className="text-xl font-black text-emerald-400 tracking-tighter mb-1">
+            bulut.today
+          </h1>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">
+            Güneş Döngüsü Raporu
+          </p>
           <p className="text-6xl mb-4">{data.isLengthening ? '☀️' : '🌙'}</p>
         </div>
 
