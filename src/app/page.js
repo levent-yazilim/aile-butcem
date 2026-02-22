@@ -6,11 +6,25 @@ export default function SunTracker() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if ("geolocation" in navigator) {
+useEffect(() => {
+    // 1. URL'deki parametreleri kontrol et (?lat=...&lng=...)
+    const params = new URLSearchParams(window.location.search);
+    const latParam = params.get('lat');
+    const lngParam = params.get('lng');
+
+    if (latParam && lngParam) {
+      // Eğer URL'de konum varsa doğrudan hesapla (GPS sorma)
+      calculateSunData(parseFloat(latParam), parseFloat(lngParam));
+    } else if ("geolocation" in navigator) {
+      // URL'de yoksa normal GPS sürecini başlat
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          calculateSunData(position.coords.latitude, position.coords.longitude);
+          const { latitude, longitude } = position.coords;
+          calculateSunData(latitude, longitude);
+          
+          // Konum bulununca URL'yi güncelle (sayfa yenilenmeden)
+          const newUrl = `${window.location.pathname}?lat=${latitude.toFixed(4)}&lng=${longitude.toFixed(4)}`;
+          window.history.pushState({ path: newUrl }, '', newUrl);
         },
         () => setError("Konum izni verilmedi. Lütfen tarayıcı ayarlarından konuma izin verin.")
       );
@@ -107,6 +121,24 @@ export default function SunTracker() {
           <p className="text-[10px] text-slate-500 mb-2 font-medium italic">
             Konumunuza göre anlık hesaplanmaktadır.
           </p>
+          <button 
+  onClick={() => {
+    const text = `☀️ bulut.today | Bugün burada günler tam ${diffText} ${isExpanding ? 'uzadı' : 'kısaldı'}! \nSenin konumunda durum ne? Öğrenmek için tıkla:`;
+    if (navigator.share) {
+      navigator.share({
+        title: 'bulut.today',
+        text: text,
+        url: window.location.href
+      });
+    } else {
+      navigator.clipboard.writeText(`${text} ${window.location.href}`);
+      alert("Link ve bilgiler kopyalandı! İstediğin yere yapıştırabilirsin. 🚀");
+    }
+  }}
+  className="mt-8 px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full transition-all text-sm flex items-center gap-2 mx-auto"
+>
+  <span>🔗</span> Paylaş ve Karşılaştır
+</button>
           <a 
             href="https://leventbulut.com" 
             target="_blank" 
