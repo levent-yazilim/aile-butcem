@@ -96,7 +96,7 @@ export default function SunTracker() {
             {data.mins > 0 ? `${data.mins} dk ` : ''}{data.secs} sn
           </h2>
           <p className={`text-xs font-black uppercase tracking-tighter ${data.isLengthening ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
-            {data.isLengthening ? 'Uzanıyor ↑' : 'Kısalıyor ↓'}
+            {data.isLengthening ? 'Uzuyor ↑' : 'Kısalıyor ↓'}
           </p>
         </div>
 
