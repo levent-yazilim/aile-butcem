@@ -1,49 +1,10 @@
 "use client";
+import React, { useState, useEffect } from 'react';
+import SunCalc from 'suncalc';
 
-import React, { useState, useEffect } from "react";
-import { Sun, Moon, ArrowUp, ArrowDown, MapPin } from "lucide-react";
-
-export default function SunCycle() {
-  const [sunData, setSunData] = useState(null);
+export default function SunTracker() {
+  const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-
-  const calculateSunData = (lat, lng) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-
-    const getSunTime = (date, isSunrise, latitude, longitude) => {
-      const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
-      const hourAngle = isSunrise ? -0.5 : 0.5;
-      const time = 12 - (hourAngle * 12) - (longitude / 15);
-      return new Date(date.setHours(time, (time % 1) * 60, 0));
-    };
-
-    const sunriseToday = getSunTime(new Date(today), true, lat, lng);
-    const sunsetToday = getSunTime(new Date(today), false, lat, lng);
-    const sunriseYesterday = getSunTime(new Date(yesterday), true, lat, lng);
-    const sunsetYesterday = getSunTime(new Date(yesterday), false, lat, lng);
-
-    const dayLengthToday = sunsetToday - sunriseToday;
-    const dayLengthYesterday = sunsetYesterday - sunriseYesterday;
-    const diffMs = dayLengthToday - dayLengthYesterday;
-
-    const diffSeconds = Math.abs(Math.floor(diffMs / 1000));
-    const mins = Math.floor(diffSeconds / 60);
-    const secs = diffSeconds % 60;
-
-    const diffText = `${mins > 0 ? `${mins} dk ` : ""}${secs} sn`;
-
-    setSunData({
-      sunrise: sunriseToday.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
-      sunset: sunsetToday.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
-      diffText,
-      isExpanding: diffMs > 0,
-      lat: lat.toFixed(4),
-      lng: lng.toFixed(4)
-    });
-  };
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -58,55 +19,106 @@ export default function SunCycle() {
     }
   }, []);
 
-  if (error) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 text-center font-sans">{error}</div>;
-  if (!sunData) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center font-sans tracking-widest uppercase italic">Yükleniyor...</div>;
+  const calculateSunData = (lat, lon) => {
+    try {
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+
+      // Güneş verilerini al
+      const timesToday = SunCalc.getTimes(today, lat, lon);
+      const timesYesterday = SunCalc.getTimes(yesterday, lat, lon);
+
+      // Gündüz süresi (milisaniye)
+      const dayLengthToday = timesToday.sunset - timesToday.sunrise;
+      const dayLengthYesterday = timesYesterday.sunset - timesYesterday.sunrise;
+      const diffInMs = dayLengthToday - dayLengthYesterday;
+
+      // Saniye ve Dakika Hesabı
+      const totalSeconds = Math.abs(Math.round(diffInMs / 1000));
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+
+      setData({
+        sunrise: timesToday.sunrise.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+        sunset: timesToday.sunset.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+        mins: mins,
+        secs: secs,
+        isLengthening: diffInMs > 0
+      });
+    } catch (err) {
+      setError("Hesaplama sırasında bir hata oluştu.");
+    }
+  };
+
+  if (error) return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+      <div className="bg-rose-500/10 border border-rose-500/20 p-6 rounded-2xl text-rose-500 text-center">
+        {error}
+      </div>
+    </div>
+  );
+
+  if (!data) return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="text-slate-500 animate-pulse font-medium">Güneş verileri hazırlanıyor...</div>
+    </div>
+  );
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white font-sans selection:bg-emerald-500/30">
-      <div className="max-w-md mx-auto pt-20 px-6 flex flex-col items-center text-center">
+    <div className="min-h-screen bg-slate-900 text-white p-6 flex items-center justify-center font-sans">
+      <div className="bg-slate-800 p-8 rounded-[40px] shadow-2xl w-full max-w-sm border border-slate-700">
         
-        <div className="mb-12 relative">
-          <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full" />
-          <div className="relative bg-slate-900 border border-white/10 p-8 rounded-full shadow-2xl">
-            {sunData.isExpanding ? (
-              <ArrowUp className="w-16 h-16 text-emerald-400 animate-bounce" />
-            ) : (
-              <ArrowDown className="w-16 h-16 text-orange-400 animate-bounce" />
-            )}
+        {/* Üst Başlık ve İkon */}
+        <div className="text-center mb-10">
+          <h1 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">Güneş Döngüsü</h1>
+          <p className="text-6xl mb-4">{data.isLengthening ? '☀️' : '🌙'}</p>
+        </div>
+
+        {/* Saat Bilgileri */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="bg-slate-900/50 p-5 rounded-3xl text-center border border-slate-700/50">
+            <p className="text-[10px] font-bold text-orange-400 uppercase mb-1 tracking-wider">Doğum</p>
+            <p className="text-xl font-black">{data.sunrise}</p>
+          </div>
+          <div className="bg-slate-900/50 p-5 rounded-3xl text-center border border-slate-700/50">
+            <p className="text-[10px] font-bold text-indigo-400 uppercase mb-1 tracking-wider">Batım</p>
+            <p className="text-xl font-black">{data.sunset}</p>
           </div>
         </div>
 
-        <h1 className="text-4xl font-bold mb-2 tracking-tight">
-          {sunData.isExpanding ? "Günler Uzuyor" : "Günler Kısalıyor"}
-        </h1>
-        
-        <p className="text-emerald-400 text-lg font-medium mb-12">
-          Bugün düne göre <span className="text-2xl px-1 font-bold">{sunData.diffText}</span> {sunData.isExpanding ? "daha uzun" : "daha kısa"}
-        </p>
-
-        <div className="grid grid-cols-2 gap-4 w-full mb-12">
-          <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-sm">
-            <Sun className="w-5 h-5 text-emerald-400 mb-2 mx-auto" />
-            <div className="text-xs text-slate-500 uppercase tracking-widest mb-1 font-bold">Gün Doğumu</div>
-            <div className="text-xl font-semibold text-slate-200">{sunData.sunrise}</div>
-          </div>
-          <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-sm">
-            <Moon className="w-5 h-5 text-emerald-400 mb-2 mx-auto" />
-            <div className="text-xs text-slate-500 uppercase tracking-widest mb-1 font-bold">Gün Batımı</div>
-            <div className="text-xl font-semibold text-slate-200">{sunData.sunset}</div>
-          </div>
+        {/* Ana Durum Kartı */}
+        <div className={`p-8 rounded-[32px] text-center transition-all ${data.isLengthening ? 'bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)]' : 'bg-rose-500/10 border border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.05)]'}`}>
+          <p className="text-[11px] font-medium text-slate-400 mb-2 uppercase tracking-widest">
+            Bugün gündüz süresi
+          </p>
+          <h2 className={`text-3xl font-black mb-1 ${data.isLengthening ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {data.mins > 0 ? `${data.mins} dk ` : ''}{data.secs} sn
+          </h2>
+          <p className={`text-xs font-black uppercase tracking-tighter ${data.isLengthening ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
+            {data.isLengthening ? 'Uzanıyor ↑' : 'Kısalıyor ↓'}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 text-slate-600 text-[10px] uppercase tracking-widest font-mono">
-          <MapPin className="w-3 h-3" />
-          <span>{sunData.lat} / {sunData.lng}</span>
+        {/* İmza Bölümü */}
+        <div className="mt-10 pt-6 border-t border-slate-700/50 text-center">
+          <p className="text-[10px] text-slate-500 mb-2 font-medium italic">
+            Konumunuza göre anlık hesaplanmaktadır.
+          </p>
+          <a 
+            href="https://leventbulut.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="group inline-flex flex-col items-center"
+          >
+            <span className="text-[10px] text-slate-400 mb-1">Geliştirici</span>
+            <span className="text-sm font-bold text-emerald-400 group-hover:text-emerald-300 transition-colors flex items-center gap-1">
+              Levent Bulut <span className="text-[10px] opacity-70">↗</span>
+            </span>
+          </a>
         </div>
 
-        <footer className="mt-20 pb-12">
-          <div className="text-slate-700 text-[10px] tracking-[0.4em] uppercase mb-2">Developed by</div>
-          <div className="text-emerald-500/40 text-sm font-serif italic tracking-widest">Levent Bulut</div>
-        </footer>
       </div>
-    </main>
+    </div>
   );
 }
