@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sun, Moon, ArrowUp, ArrowDown, MapPin, Share2 } from "lucide-react";
 
 export default function SunCycle() {
   const [sunData, setSunData] = useState(null);
@@ -50,7 +49,7 @@ export default function SunCycle() {
 
     if (latParam && lngParam) {
       calculateSunData(parseFloat(latParam), parseFloat(lngParam));
-    } else if ("geolocation" in navigator) {
+    } else if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
@@ -60,80 +59,63 @@ export default function SunCycle() {
         },
         () => setError("Konum izni verilmedi. Lütfen konuma izin verin.")
       );
-    } else {
-      setError("Tarayıcınız konum özelliğini desteklemiyor.");
     }
   }, []);
 
   const handleShare = () => {
     if (!sunData) return;
-    const text = `☀️ bulut.today | Bugün burada günler tam ${sunData.diffText} ${sunData.isExpanding ? 'uzadı' : 'kısaldı'}! \nSenin konumunda durum ne? Öğrenmek için tıkla:`;
-    const url = window.location.href;
+    const shareText = `☀️ bulut.today | Bugün burada günler tam ${sunData.diffText} ${sunData.isExpanding ? 'uzadı' : 'kısaldı'}!`;
+    const shareUrl = window.location.href;
 
     if (navigator.share) {
-      navigator.share({ title: 'bulut.today', text: text, url: url });
+      navigator.share({ title: 'bulut.today', text: shareText, url: shareUrl });
     } else {
-      navigator.clipboard.writeText(`${text} ${url}`);
+      navigator.clipboard.writeText(`${shareText} \n${shareUrl}`);
       alert("Link ve bilgiler kopyalandı! 🚀");
     }
   };
 
-  if (error) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">{error}</div>;
-  if (!sunData) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Yükleniyor...</div>;
+  if (error) return <div className="min-h-screen bg-black text-white p-10">{error}</div>;
+  if (!sunData) return <div className="min-h-screen bg-black text-white p-10 text-center">Yükleniyor...</div>;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white font-sans selection:bg-emerald-500/30">
-      <div className="max-w-md mx-auto pt-20 px-6 flex flex-col items-center text-center">
-        
-        <div className="mb-12 relative">
-          <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full" />
-          <div className="relative bg-slate-900 border border-white/10 p-8 rounded-full shadow-2xl">
-            {sunData.isExpanding ? (
-              <ArrowUp className="w-16 h-16 text-emerald-400 animate-bounce" />
-            ) : (
-              <ArrowDown className="w-16 h-16 text-orange-400 animate-bounce" />
-            )}
-          </div>
+    <main className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center">
+      <div className="max-w-md w-full">
+        {/* İkon Bölümü */}
+        <div className="mb-8 inline-block p-10 rounded-full bg-slate-900 border border-white/10 shadow-2xl">
+          <span className="text-6xl">{sunData.isExpanding ? "☀️" : "🌙"}</span>
         </div>
 
-        <h1 className="text-4xl font-bold mb-2 tracking-tight">
+        <h1 className="text-4xl font-bold mb-4">
           {sunData.isExpanding ? "Günler Uzuyor" : "Günler Kısalıyor"}
         </h1>
         
-        <p className="text-emerald-400 text-lg font-medium mb-8">
-          Bugün düne göre <span className="text-2xl px-1">{sunData.diffText}</span> {sunData.isExpanding ? "daha uzun" : "daha kısa"}
+        <p className="text-emerald-400 text-xl mb-10">
+          Bugün düne göre <span className="font-bold border-b-2 border-emerald-500">{sunData.diffText}</span> {sunData.isExpanding ? "daha uzun" : "daha kısa"}
         </p>
 
-        <div className="grid grid-cols-2 gap-4 w-full mb-8">
-          <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-sm">
-            <Sun className="w-5 h-5 text-emerald-400 mb-2 mx-auto" />
-            <div className="text-xs text-slate-400 uppercase tracking-widest mb-1">Gün Doğumu</div>
-            <div className="text-xl font-semibold">{sunData.sunrise}</div>
+        <div className="grid grid-cols-2 gap-4 mb-10">
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+            <div className="text-xs text-slate-400 uppercase mb-1">Doğum</div>
+            <div className="text-2xl font-semibold">{sunData.sunrise}</div>
           </div>
-          <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-sm">
-            <Moon className="w-5 h-5 text-emerald-400 mb-2 mx-auto" />
-            <div className="text-xs text-slate-400 uppercase tracking-widest mb-1">Gün Batımı</div>
-            <div className="text-xl font-semibold">{sunData.sunset}</div>
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+            <div className="text-xs text-slate-400 uppercase mb-1">Batım</div>
+            <div className="text-2xl font-semibold">{sunData.sunset}</div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-slate-500 text-sm mb-8">
-          <MapPin className="w-4 h-4" />
-          <span>Konum: {sunData.lat}, {sunData.lng}</span>
-        </div>
-
-        {/* PAYLAŞ BUTONU */}
+        {/* PAYLAŞ BUTONU - TIKLANABİLİR ALANI GARANTİYE ALDIK */}
         <button 
           onClick={handleShare}
-          className="group relative flex items-center gap-2 px-8 py-4 bg-emerald-500 text-slate-950 font-bold rounded-full hover:bg-emerald-400 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+          className="w-full py-4 bg-emerald-500 text-slate-950 font-bold rounded-2xl hover:bg-emerald-400 active:scale-95 transition-all flex items-center justify-center gap-2 text-lg shadow-xl"
         >
-          <Share2 className="w-5 h-5" />
-          <span>Paylaş ve Karşılaştır</span>
+          <span>🔗</span> Paylaş ve Karşılaştır
         </button>
 
-        <footer className="mt-20 pb-10 text-slate-600 text-xs tracking-widest uppercase italic">
-          levent bulut
-        </footer>
+        <div className="mt-8 text-slate-600 text-[10px] tracking-widest uppercase italic">
+          levent bulut • {sunData.lat}, {sunData.lng}
+        </div>
       </div>
     </main>
   );
