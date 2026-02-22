@@ -1,144 +1,123 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase'; // Santral bağlantısı
+import SunCalc from 'suncalc';
 
-export default function Dashboard() {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [subscriptions, setSubscriptions] = useState([]); // Başlangıç boş, veritabanından dolacak
-  const [newName, setNewName] = useState('');
-  const [newPrice, setNewPrice] = useState('');
-  const [loading, setLoading] = useState(true);
+export default function SunTracker() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
 
-  // 1. VERİLERİ ÇEKME (Sayfa açıldığında Supabase'den alır)
   useEffect(() => {
-    fetchSubscriptions();
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          calculateSunData(position.coords.latitude, position.coords.longitude);
+        },
+        () => setError("Konum izni verilmedi. Lütfen tarayıcı ayarlarından konuma izin verin.")
+      );
+    } else {
+      setError("Tarayıcınız konum özelliğini desteklemiyor.");
+    }
   }, []);
 
-  async function fetchSubscriptions() {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .order('created_at', { ascending: false });
+  const calculateSunData = (lat, lon) => {
+    try {
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
 
-    if (!error) {
-      setSubscriptions(data);
-    }
-    setLoading(false);
-  }
+      // Güneş verilerini al
+      const timesToday = SunCalc.getTimes(today, lat, lon);
+      const timesYesterday = SunCalc.getTimes(yesterday, lat, lon);
 
-  // 2. YENİ ABONELİK EKLEME (Supabase'e gönderir)
-  const addSubscription = async (e) => {
-    e.preventDefault();
-    if (!newName || !newPrice) return;
+      // Gündüz süresi (milisaniye)
+      const dayLengthToday = timesToday.sunset - timesToday.sunrise;
+      const dayLengthYesterday = timesYesterday.sunset - timesYesterday.sunrise;
+      const diffInMs = dayLengthToday - dayLengthYesterday;
 
-    const { data, error } = await supabase
-      .from('subscriptions')
-      .insert([
-        { name: newName, price: parseFloat(newPrice), category: 'Genel' }
-      ])
-      .select();
+      // Saniye ve Dakika Hesabı
+      const totalSeconds = Math.abs(Math.round(diffInMs / 1000));
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
 
-    if (!error && data) {
-      setSubscriptions([data[0], ...subscriptions]); // Listeye en başa ekle
-      setNewName(''); 
-      setNewPrice(''); 
-      setIsFormOpen(false);
-    } else {
-      alert("Veri eklenirken bir hata oluştu: " + error.message);
+      setData({
+        sunrise: timesToday.sunrise.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+        sunset: timesToday.sunset.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+        mins: mins,
+        secs: secs,
+        isLengthening: diffInMs > 0
+      });
+    } catch (err) {
+      setError("Hesaplama sırasında bir hata oluştu.");
     }
   };
 
-  // 3. ABONELİK SİLME (Supabase'den siler)
-  const deleteSubscription = async (id) => {
-    const { error } = await supabase
-      .from('subscriptions')
-      .delete()
-      .eq('id', id);
+  if (error) return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+      <div className="bg-rose-500/10 border border-rose-500/20 p-6 rounded-2xl text-rose-500 text-center">
+        {error}
+      </div>
+    </div>
+  );
 
-    if (!error) {
-      setSubscriptions(subscriptions.filter(sub => sub.id !== id));
-    }
-  };
-
-  const totalMonthly = subscriptions.reduce((acc, curr) => acc + curr.price, 0);
-  const totalYearly = totalMonthly * 12;
+  if (!data) return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="text-slate-500 animate-pulse font-medium">Güneş verileri hazırlanıyor...</div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] text-black p-6 font-sans">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-screen bg-slate-900 text-white p-6 flex items-center justify-center font-sans">
+      <div className="bg-slate-800 p-8 rounded-[40px] shadow-2xl w-full max-w-sm border border-slate-700">
         
-        <header className="bg-white rounded-[32px] p-8 shadow-sm mb-6 text-center border border-white">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[2px] mb-2">Toplam Harcama</p>
-          <h1 className="text-5xl font-black tracking-tighter">{totalMonthly.toLocaleString('tr-TR')} TL</h1>
-          <div className="mt-4 py-1 px-3 bg-gray-100 rounded-full inline-block">
-            <p className="text-[11px] text-gray-500 font-medium">Yıllık Tahmin: <b>{totalYearly.toLocaleString('tr-TR')} TL</b></p>
-          </div>
-        </header>
-
-        <button 
-          onClick={() => setIsFormOpen(true)}
-          className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold mb-8 active:scale-95 transition-all shadow-lg shadow-blue-200"
-        >
-          + Yeni Abonelik Ekle
-        </button>
-
-        <div className="space-y-3">
-          <h2 className="text-sm font-bold text-gray-400 ml-2 mb-2 uppercase tracking-wider">Aboneliklerin</h2>
-          
-          {loading ? (
-            <p className="text-center text-gray-400 text-sm">Yükleniyor...</p>
-          ) : subscriptions.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm italic">Henüz bir şey eklemedin.</p>
-          ) : (
-            subscriptions.map((sub) => (
-              <div key={sub.id} className="bg-white p-4 rounded-2xl flex justify-between items-center group">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center font-bold text-gray-400 text-xs">
-                    {sub.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm text-gray-800">{sub.name}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">{sub.category}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <p className="font-extrabold text-sm">{sub.price} TL</p>
-                  <button 
-                    onClick={() => deleteSubscription(sub.id)}
-                    className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+        {/* Üst Başlık ve İkon */}
+        <div className="text-center mb-10">
+          <h1 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">Güneş Döngüsü</h1>
+          <p className="text-6xl mb-4">{data.isLengthening ? '☀️' : '🌙'}</p>
         </div>
 
-        {isFormOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 z-50">
-            <div className="bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-in slide-in-from-bottom-10">
-              <h2 className="text-2xl font-black mb-6">Yeni Ekle</h2>
-              <form onSubmit={addSubscription} className="space-y-4">
-                <input 
-                  type="text" placeholder="Hizmet Adı" 
-                  className="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium"
-                  value={newName} onChange={(e) => setNewName(e.target.value)}
-                />
-                <input 
-                  type="number" step="0.01" placeholder="Aylık Fiyat" 
-                  className="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium"
-                  value={newPrice} onChange={(e) => setNewPrice(e.target.value)}
-                />
-                <div className="flex gap-3 pt-4">
-                  <button type="submit" className="flex-[2] bg-blue-600 text-white py-4 rounded-2xl font-bold">Ekle</button>
-                  <button type="button" onClick={() => setIsFormOpen(false)} className="flex-1 bg-gray-100 text-gray-500 py-4 rounded-2xl font-bold">Vazgeç</button>
-                </div>
-              </form>
-            </div>
+        {/* Saat Bilgileri */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="bg-slate-900/50 p-5 rounded-3xl text-center border border-slate-700/50">
+            <p className="text-[10px] font-bold text-orange-400 uppercase mb-1 tracking-wider">Doğum</p>
+            <p className="text-xl font-black">{data.sunrise}</p>
           </div>
-        )}
+          <div className="bg-slate-900/50 p-5 rounded-3xl text-center border border-slate-700/50">
+            <p className="text-[10px] font-bold text-indigo-400 uppercase mb-1 tracking-wider">Batım</p>
+            <p className="text-xl font-black">{data.sunset}</p>
+          </div>
+        </div>
+
+        {/* Ana Durum Kartı */}
+        <div className={`p-8 rounded-[32px] text-center transition-all ${data.isLengthening ? 'bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)]' : 'bg-rose-500/10 border border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.05)]'}`}>
+          <p className="text-[11px] font-medium text-slate-400 mb-2 uppercase tracking-widest">
+            Bugün gündüz süresi
+          </p>
+          <h2 className={`text-3xl font-black mb-1 ${data.isLengthening ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {data.mins > 0 ? `${data.mins} dk ` : ''}{data.secs} sn
+          </h2>
+          <p className={`text-xs font-black uppercase tracking-tighter ${data.isLengthening ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
+            {data.isLengthening ? 'Uzuyor ↑' : 'Kısalıyor ↓'}
+          </p>
+        </div>
+
+        {/* İmza Bölümü */}
+        <div className="mt-10 pt-6 border-t border-slate-700/50 text-center">
+          <p className="text-[10px] text-slate-500 mb-2 font-medium italic">
+            Konumunuza göre anlık hesaplanmaktadır.
+          </p>
+          <a 
+            href="https://leventbulut.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="group inline-flex flex-col items-center"
+          >
+            <span className="text-[10px] text-slate-400 mb-1">Geliştirici</span>
+            <span className="text-sm font-bold text-emerald-400 group-hover:text-emerald-300 transition-colors flex items-center gap-1">
+              Levent Bulut <span className="text-[10px] opacity-70">↗</span>
+            </span>
+          </a>
+        </div>
+
       </div>
     </div>
   );
