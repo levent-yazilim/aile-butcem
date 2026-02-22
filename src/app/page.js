@@ -123,19 +123,25 @@ useEffect(() => {
           </p>
           <button 
   onClick={() => {
-    const text = `☀️ bulut.today | Bugün burada günler tam ${diffText} ${isExpanding ? 'uzadı' : 'kısaldı'}! \nSenin konumunda durum ne? Öğrenmek için tıkla:`;
+    // Paylaşılacak metni hazırla
+    const shareText = `☀️ bulut.today | Bugün burada günler tam ${diffText} ${isExpanding ? 'uzadı' : 'kısaldı'}!`;
+    const shareUrl = window.location.href;
+
     if (navigator.share) {
+      // Mobil cihazlar (iPhone/Android) için yerel paylaşım menüsü
       navigator.share({
         title: 'bulut.today',
-        text: text,
-        url: window.location.href
-      });
+        text: shareText,
+        url: shareUrl
+      }).catch((err) => console.log('Paylaşım iptal edildi', err));
     } else {
-      navigator.clipboard.writeText(`${text} ${window.location.href}`);
+      // Masaüstü tarayıcılar için panoya kopyalama
+      navigator.clipboard.writeText(`${shareText} \n${shareUrl}`);
       alert("Link ve bilgiler kopyalandı! İstediğin yere yapıştırabilirsin. 🚀");
     }
   }}
-  className="mt-8 px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full transition-all text-sm flex items-center gap-2 mx-auto"
+  className="mt-8 px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full transition-all text-sm flex items-center gap-2 mx-auto cursor-pointer active:scale-95"
+  style={{ zIndex: 10, position: 'relative' }} // Üstte kalmasını garantiye alalım
 >
   <span>🔗</span> Paylaş ve Karşılaştır
 </button>
