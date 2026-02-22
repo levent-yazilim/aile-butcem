@@ -12,8 +12,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: 'bulut.today | Güneş Döngüsü ve Gün Uzama Kısalma Verileri',
-  description: 'Konumunuza göre anlık güneş doğuşu, batışı ve gün süresi takibi.',
+  title: 'bulut.today | Güneş Döngüsü',
+  description: 'Gündüz süresini ve güneşin hareketlerini anlık takip edin.',
+  icons: {
+    icon: '/favicon.ico', // Tarayıcı sekmesi için
+    apple: '/apple-touch-icon.png', // iPhone ana ekranı için
+  },
+  manifest: '/manifest.json', // Uygulama gibi davranması için
 
 };
 
